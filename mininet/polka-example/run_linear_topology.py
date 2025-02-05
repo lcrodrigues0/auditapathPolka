@@ -324,6 +324,7 @@ def test_integrity(net: Mininet_wifi):
 
     first_host = hunt_host(net, "h1")
     assert first_host is not None, "Host h1 not found"
+
     last_host = hunt_host(
         net, "h10"
     )  # h11 is right beside h1, so wouldn't traverse all switches
@@ -334,6 +335,7 @@ def test_integrity(net: Mininet_wifi):
         f"    a ping from {first_host.name} to {last_host.name},\n"
         "    goes through all core switches.\n"
     )
+
     packet_loss_pct = net.ping(hosts=[first_host, last_host], timeout=1)
     # Comparing floats (bad), but it's fine because an exact 0.0% packet loss is expected
     assert packet_loss_pct == 0.0, f"Packet loss occurred: {packet_loss_pct}%"
@@ -867,6 +869,43 @@ def run_network_tests():
         raise e
     info("*** ✅ All tests passed.\n")
 
+def call_log_probe(pkt):
+            polka_pkt = pkt.getlayer(Polka)
+            probe_pkt = pkt.getlayer(PolkaProbe)
+
+            data_dct = {
+                "flowId": "0",
+                "routeId": str(polka_pkt.route_id),
+                "timestamp": str(probe_pkt.timestamp),
+                "lightMultSig": str(probe_pkt.l_hash),   
+            }
+
+            req = urllib.request.Request(
+                ENDPOINT_URL + "logProbe",
+                data = json.dumps(data_dct).encode('utf-8'),
+                headers={'Content-Type': 'application/json'}
+            )
+            res = urllib.request.urlopen(req)
+            print(res.read())
+
+def call_set_ref_sig(pkt):
+            polka_pkt = pkt.getlayer(Polka)
+            probe_pkt = pkt.getlayer(PolkaProbe)
+
+            data_dct = {
+                "flowId": "0",
+                "routeId": str(polka_pkt.route_id),
+                "timestamp": str(probe_pkt.timestamp),
+                "lightMultSig": str(probe_pkt.l_hash),   
+            }
+
+            req = urllib.request.Request(
+                ENDPOINT_URL + "setRefSig",
+                data = json.dumps(data_dct).encode('utf-8'),
+                headers={'Content-Type': 'application/json'}
+            )
+            res = urllib.request.urlopen(req)
+            print(res.read())
 
 def collect_siphash():
     """
@@ -885,7 +924,7 @@ def collect_siphash():
 
         # sleep for a bit to let the network stabilize
         sleep(3)
-
+        
         sniff = start_sniffing(net)
 
         test_integrity(net)
@@ -894,38 +933,20 @@ def collect_siphash():
         pkts = sniff.stop()
         pkts.sort(key=lambda pkt: pkt.time)
 
-        def send_pkt(pkt):
-            polka_pkt = pkt.getlayer(Polka)
-            probe_pkt = pkt.getlayer(PolkaProbe)
-
-            data_dct = {
-                "flow_id": 0,
-                "route_id": polka_pkt.route_id,
-                "timestamp": polka_pkt.timestamp,
-                "l_hash": polka_pkt.l_hash,   
-            }
-
-            req = urllib.request.Request(
-                ENDPOINT_URL,
-                data = json.dumps(data_dct).encode('utf-8')
-            )
-            # res = urllib.request.urlopen(req)
-            # print(res.read().decode('utf-8'))
-
-        # Sending the seed can only be done after this, since pkts can arrive out of order
-        # So the pkt has already completed the request.
-        send_pkt(pkts[0])
-        send_pkt(pkts[-1])
-
         # for pkt in pkts:
         #     probe = pkt.getlayer(PolkaProbe)
         #     polka = pkt.getlayer(Polka)
 
         #     print(f"{polka.ttl:#0{6}x} -> {probe.l_hash:#0{10}x}")
 
-
-
         info("*** Hashes collected ***\n")
+
+        # Sending the seed can only be done after this, since pkts can arrive out of order
+        # So the pkt has already completed the request.
+        call_log_probe(pkts[-1])
+
+
+
 
     finally:
         net.stop()
@@ -938,7 +959,7 @@ def deployFlowContract():
     data_dct = {
         "flowId": "0",
         "routeId": "1",
-        "edgeAddr": "0x3b217c496D8023455E9C202C7bAE13D27Cd3C4e9"
+        "edgeAddr": "0x2D06A63eb874A5142F9443f9fB6B4b093b661AC7"
     }
 
     req = urllib.request.Request(
@@ -954,7 +975,7 @@ if __name__ == "__main__":
     # run_network_tests()
 
     deployFlowContract()
-    # collect_siphash()
+    collect_siphash()
 
     # info("*** Running CLI\n")
     # net = linear_topology()
