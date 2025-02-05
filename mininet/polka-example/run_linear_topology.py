@@ -869,43 +869,58 @@ def run_network_tests():
         raise e
     info("*** ✅ All tests passed.\n")
 
-def call_log_probe(pkt):
-            polka_pkt = pkt.getlayer(Polka)
-            probe_pkt = pkt.getlayer(PolkaProbe)
+def call_deploy_flow_contract():
+    data_dct = {
+        "flowId": "0",
+        "routeId": "1",
+        "edgeAddr": "0x2D06A63eb874A5142F9443f9fB6B4b093b661AC7"
+    }
 
-            data_dct = {
-                "flowId": "0",
-                "routeId": str(polka_pkt.route_id),
-                "timestamp": str(probe_pkt.timestamp),
-                "lightMultSig": str(probe_pkt.l_hash),   
-            }
-
-            req = urllib.request.Request(
-                ENDPOINT_URL + "logProbe",
-                data = json.dumps(data_dct).encode('utf-8'),
-                headers={'Content-Type': 'application/json'}
-            )
-            res = urllib.request.urlopen(req)
-            print(res.read())
+    req = urllib.request.Request(
+        ENDPOINT_URL + "/deployFlowContract",
+        data = json.dumps(data_dct).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
+    )
+    res = urllib.request.urlopen(req)
+    print(res.read())
 
 def call_set_ref_sig(pkt):
-            polka_pkt = pkt.getlayer(Polka)
-            probe_pkt = pkt.getlayer(PolkaProbe)
+    polka_pkt = pkt.getlayer(Polka)
+    probe_pkt = pkt.getlayer(PolkaProbe)
 
-            data_dct = {
-                "flowId": "0",
-                "routeId": str(polka_pkt.route_id),
-                "timestamp": str(probe_pkt.timestamp),
-                "lightMultSig": str(probe_pkt.l_hash),   
-            }
+    data_dct = {
+        "flowId": "0",
+        "routeId": str(BASE_DIGESTS["h1-h10"][9]),
+        "timestamp": str(probe_pkt.timestamp),
+        "lightMultSig": str(probe_pkt.l_hash),   
+    }
 
-            req = urllib.request.Request(
-                ENDPOINT_URL + "setRefSig",
-                data = json.dumps(data_dct).encode('utf-8'),
-                headers={'Content-Type': 'application/json'}
-            )
-            res = urllib.request.urlopen(req)
-            print(res.read())
+    req = urllib.request.Request(
+        ENDPOINT_URL + "setRefSig",
+        data = json.dumps(data_dct).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
+    )
+    res = urllib.request.urlopen(req)
+    print(res.read())
+
+def call_log_probe(pkt):
+    polka_pkt = pkt.getlayer(Polka)
+    probe_pkt = pkt.getlayer(PolkaProbe)
+
+    data_dct = {
+        "flowId": "0",
+        "routeId": str(polka_pkt.route_id),
+        "timestamp": str(probe_pkt.timestamp),
+        "lightMultSig": str(probe_pkt.l_hash),   
+    }
+
+    req = urllib.request.Request(
+        ENDPOINT_URL + "logProbe",
+        data = json.dumps(data_dct).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
+    )
+    res = urllib.request.urlopen(req)
+    print(res.read())
 
 def collect_siphash():
     """
@@ -939,13 +954,14 @@ def collect_siphash():
 
         #     print(f"{polka.ttl:#0{6}x} -> {probe.l_hash:#0{10}x}")
 
-        info("*** Hashes collected ***\n")
 
         # Sending the seed can only be done after this, since pkts can arrive out of order
         # So the pkt has already completed the request.
+        call_deploy_flow_contract()
+        call_set_ref_sig(pkts[0])
         call_log_probe(pkts[-1])
 
-
+        info("*** Hashes collected ***\n")
 
 
     finally:
@@ -954,27 +970,10 @@ def collect_siphash():
 
     info("*** ✅ Run finished.\n")
 
-
-def deployFlowContract():
-    data_dct = {
-        "flowId": "0",
-        "routeId": "1",
-        "edgeAddr": "0x2D06A63eb874A5142F9443f9fB6B4b093b661AC7"
-    }
-
-    req = urllib.request.Request(
-        ENDPOINT_URL + "/deployFlowContract",
-        data = json.dumps(data_dct).encode('utf-8'),
-        headers={'Content-Type': 'application/json'}
-    )
-    res = urllib.request.urlopen(req)
-    print(res.read())
-
 if __name__ == "__main__":
     setLogLevel("info")
     # run_network_tests()
 
-    deployFlowContract()
     collect_siphash()
 
     # info("*** Running CLI\n")
