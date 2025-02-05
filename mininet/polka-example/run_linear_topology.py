@@ -943,10 +943,11 @@ def deployFlowContract():
 
     req = urllib.request.Request(
         ENDPOINT_URL + "/deployFlowContract",
-        data = json.dumps(data_dct).encode('utf-8')
+        data = json.dumps(data_dct).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
     )
     res = urllib.request.urlopen(req)
-    # print(res.read())
+    print(res.read())
 
 if __name__ == "__main__":
     setLogLevel("info")
